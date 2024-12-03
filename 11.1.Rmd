@@ -1,0 +1,72 @@
+
+```{r}
+# install.packages("nortest")
+library(nortest)
+```
+
+
+```{r}
+# Load data
+df <- read.csv(file.choose())
+```
+
+```{r}
+# Extract the 'vote_average' column
+vote_avg <- df$vote_average
+head(vote_avg)
+```
+
+```{r}
+# Summary statistics for the dataset
+vote_avg_mean <- mean(vote_avg)
+vote_avg_sd <- sd(vote_avg)
+print(paste("Mean:", vote_avg_mean))
+print(paste("Standard Deviation:", vote_avg_sd))
+```
+
+```{r}
+# Plot the PDF of a normal distribution
+y <- dnorm(vote_avg, mean = vote_avg_mean, sd = vote_avg_sd)
+plot(vote_avg, y, type = "p", main = "Normal Distribution", xlab = "Vote Average", ylab = "Density")
+```
+
+```{r}
+# Calculate the probability density at x = 3 for a normal distribution with mean = vote_avg_mean and sd = vote_avg_sd
+density_at_3 <- dnorm(3, mean = vote_avg_mean, sd = vote_avg_sd)
+print(density_at_3)
+```
+
+```{r}
+# Calculate the cumulative probability for x = 1 for a normal distribution with mean = vote_avg_mean and sd = vote_avg_sd
+cumulative_prob <- pnorm(1, mean = vote_avg_mean, sd = vote_avg_sd)
+print(cumulative_prob)
+```
+
+```{r}
+# Find the x value where the cumulative probability is 0.95
+quantile_value <- qnorm(0.95, mean = vote_avg_mean, sd = vote_avg_sd)
+print(quantile_value)
+```
+
+```{r}
+# Calculate the probability that a value is between -1 and 1
+prob_between <- pnorm(1, mean = vote_avg_mean, sd = vote_avg_sd) - pnorm(-1, mean = vote_avg_mean, sd = vote_avg_sd)
+print(prob_between)
+```
+
+```{r}
+# Plot the normal distribution with mean = 5 and sd = 2
+y <- dnorm(vote_avg, mean = 5, sd = 2)
+plot(vote_avg, y, type = "p", main = "Normal Distribution (mean = 5, sd = 2)", xlab = "Vote Average", ylab = "Density")
+```
+
+```{r}
+# Anderson-Darling test for normality
+ad.test(vote_avg)
+```
+
+```{r}
+# Q-Q plot for a normal distribution
+qqnorm(vote_avg)
+qqline(vote_avg, col = "red")
+```
