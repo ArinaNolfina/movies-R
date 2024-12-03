@@ -1,0 +1,914 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+# Install necessary packages
+install.packages("tidyverse")  # Install tidyverse package
+install.packages("tidyr")      # Install tidyr package
+install.packages("dplyr")      # Install dplyr package
+install.packages("readxl")     # Install readxl package
+```
+```{r}
+# Load libraries
+library(tidyverse)  
+library(readxl)      
+library(tidyr)       
+library(dplyr)
+library(ggplot2)
+```
+```{r}
+# Read your dataset
+setwd('C://Users//Sabyr//Documents')
+data1 <- read_csv("TMDB_all_movies.csv")  
+dim(data1)  # Determine dimensions
+```
+```{r}
+# Select columns to keep
+data1 <- data1 %>% select(-id, -imdb_id, -original_title, -overview, -tagline, -cast, -director_of_photography, -writers, -producers, -music_composer, -poster_path)
+data1 <- data1 %>% select(-imdb_votes, -imdb_rating)
+data1 <- data1 %>% select(-production_companies)
+data1 <- data1 %>% select(-spoken_languages, -director)
+set.seed(111)
+sample_size <- ceiling(0.1 * nrow(data1))
+# Take a random sample of 10% of the rows
+sample_rows <- sample(1:nrow(data1), size = sample_size)
+data1 <- data1[sample_rows, ]
+rm(sample_rows)
+rm(sample_size)
+```
+
+```{r}
+# Remove duplicate rows
+data1 <- distinct(data1)
+print(data1)
+
+# Display structure and first few rows of data2
+str(data1)
+head(data1)
+```
+```{r}
+
+# Create a scatter plot
+ggplot(data1, aes(x = vote_average, y = revenue)) +  
+  geom_point() +
+  ggtitle("Scatter Plot")
+
+# Create an enhanced scatter plot
+data1$vote_count <- as.numeric(data1$vote_count)
+ggplot(data1, aes(x = vote_count, y = revenue)) +
+  geom_point(aes(size = vote_average, color = status), alpha = 0.7, show.legend = TRUE) +  
+  labs(title = "Scatter Plot: # of Votes vs Revenue",  
+       subtitle = "Point size corresponds to average vote",  
+       x = "# of Votes",  
+       y = "Revenue (in dollars)") +  
+  theme_minimal() +  
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),  
+        plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),  
+        plot.subtitle = element_text(hjust = 0.5, size = 12, face = "italic")) +  
+  geom_smooth(method = "lm", se = FALSE, color = "black") +  
+  scale_color_brewer(palette = "Set1") +  
+  scale_size_continuous(range = c(1, 5))  
+```
+```{r}
+boxplot(data1$runtime, main="Boxplot of Runtime", ylab="Runtime (minutes)")
+Q1 <- quantile(data1$runtime, 0.25)
+Q3 <- quantile(data1$runtime, 0.75)
+lower_bound <- Q1 - 2* (Q3 - Q1)
+upper_bound <- Q3 + 2 * (Q3 - Q1)
+data1 <- data1[data1$runtime >= lower_bound & data1$runtime <= upper_bound,]
+rm(Q1)
+rm(Q3)
+rm(lower_bound)
+rm(upper_bound)
+ls()
+boxplot(data1$runtime, main="Boxplot of Runtime", ylab="Runtime (minutes)")
+```
+```{r}
+# Creating a histogram for the runtime column
+data1$runtime <- as.numeric(as.character(data1$runtime))
+ggplot(data1, aes(x = runtime)) +  # Using the runtime column for the X-axis
+  geom_histogram(binwidth = 5, fill = "lightblue", color = "black", alpha = 0.7) +  # Setting bin width and color
+  labs(title = "Histogram of Movie Runtimes",  # Title
+       x = "Runtime (minutes)",  # X-axis label
+       y = "Frequency") +  # Y-axis label
+  theme_minimal(base_size = 15) +  # Minimalist theme
+  theme(axis.title.x = element_text(face = "bold"),  # Bold text for X-axis label
+        axis.title.y = element_text(face = "bold"),  # Bold text for Y-axis label
+        plot.title = element_text(size = 18, face = "bold", hjust = 0.5))  # Bold and centered title
+```
+```{r}
+# Creating a boxplot for the runtime column
+ggplot(data1, aes(y = runtime)) +
+  geom_boxplot(fill = "lightblue", 
+               color = "darkblue", 
+               outlier.color = "red", 
+               outlier.shape = 16, 
+               outlier.size = 2,
+               notch = TRUE) +  # Adding a notch for the median
+  labs(title = "Boxplot of Runtime",  # Title
+       y = "Runtime (minutes)",  # Y-axis label
+       x = "") +  # Removing X-axis label as it's not needed
+  theme_minimal(base_size = 15) +  # Using a minimalist theme with base font size
+  theme(axis.text.y = element_text(size = 12),  # Y-axis text size
+        axis.title.y = element_text(size = 14, face = "bold"),  # Bold text for Y-axis label
+        plot.title = element_text(size = 16, face = "bold", hjust = 0.5))  # Bold and centered title
+```
+```{r}
+# Splitting genres as they might be in the form of comma-separated strings
+# Transforming strings into separate records
+genre_counts <- data1 %>%
+  mutate(genres = strsplit(as.character(genres), ",")) %>%  # Splitting genres
+  unnest(genres) %>%  # Unnesting the list of genres into separate rows
+  count(genres) %>%  # Counting records by genre
+  arrange(desc(n)) %>%  # Sorting in descending order
+  filter(n > 5)  # Removing genres with less than 5 records for better readability
+
+# Creating a bar chart
+ggplot(genre_counts, aes(x = reorder(genres, -n), y = n)) +  # Sorting genres in descending order
+  geom_bar(stat = "identity", fill = "lightcoral", color = "black") +  # Creating bars
+  labs(title = "Distribution of Movie Genres",  # Title
+       x = "Genre",  # X-axis label
+       y = "Count") +  # Y-axis label
+  theme_minimal(base_size = 15) +  # Minimalist theme
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 10),  # Rotating X-axis text
+        axis.title.x = element_text(face = "bold"),  # Bold text for X-axis label
+        axis.title.y = element_text(face = "bold"),  # Bold text for Y-axis label
+        plot.title = element_text(size = 18, face = "bold", hjust = 0.5))  # Bold and centered title
+```
+```{r}
+# Splitting genres as they might be in the form of comma-separated strings
+genre_counts <- data1 %>%
+  mutate(genres = strsplit(as.character(genres), ",")) %>%  # Splitting genres
+  unnest(genres) %>%  # Unnesting the list of genres into separate rows
+  count(genres) %>%  # Counting records by genre
+  arrange(desc(n))  # Sorting in descending order
+
+
+# Creating a pie chart
+ggplot(genre_counts, aes(x = "", y = n, fill = genres)) +  # Filling by genres
+  geom_bar(stat = "identity", width = 1) +  # Creating bars
+  coord_polar("y") +  # Converting to a pie chart
+  labs(title = "Distribution of Movie Genres",  # Title
+       fill = "Genre") +  # Legend
+  theme_minimal(base_size = 15) +  # Minimalist theme
+  theme(axis.text.x = element_blank(),  # Removing X-axis text
+        axis.title.x = element_blank(),  # Removing X-axis label
+        axis.title.y = element_blank(),  # Removing Y-axis label
+        plot.title = element_text(size = 18, face = "bold", hjust = 0.5))  # Bold and centered title
+```
+
+```{r}
+# Загрузка библиотек
+library(visdat)
+library(dplyr)
+library(tidyverse)
+library(missRanger)
+library(missForest)
+library(mice)
+library(Hmisc)
+library(forcats)
+library(ggplot2)
+
+# Функция для вычисления моды
+mode <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
+# Сводка данных
+summary(data1)
+
+# Визуализация пропущенных значений с помощью vis_miss
+
+# Визуализация пропущенных значений с помощью mice
+mice::md.pattern(data1)
+
+# Визуализация пропущенных значений с помощью aggr()
+VIM::aggr(x = data1, sortVars = TRUE)
+
+# Удаление всех строк с пропущенными значениями
+data1_removed_NAs <- data1 %>% na.omit()
+
+# Процент удаленных строк
+(1 - nrow(data1_removed_NAs) / nrow(data1)) * 100
+
+# Сводка данных после удаления пропущенных значений
+summary(data1_removed_NAs)
+
+# Замена пропущенных значений медианой
+data1_impute <- data1
+data1_impute$vote_average <- Hmisc::impute(x = data1_impute$vote_average)
+data1_impute$vote_count <- Hmisc::impute(x = data1_impute$vote_count)
+data1_impute$revenue <- Hmisc::impute(x = data1_impute$revenue)
+data1_impute$runtime <- Hmisc::impute(x = data1_impute$runtime)
+data1_impute$budget <- Hmisc::impute(x = data1_impute$budget)
+data1_impute$popularity <- Hmisc::impute(x = data1_impute$popularity)
+
+# Сводка данных после замены пропущенных значений медианой
+summary(data1_impute)
+
+# Просмотр данных после замены пропущенных значений медианой
+
+# Замена пропущенных значений с использованием missRanger
+data1_missRanger <- missRanger(data = data1 %>% select(-release_date, -genres))
+
+# Сводка данных после замены пропущенных значений с использованием missRanger
+summary(data1_missRanger)
+
+# Просмотр данных после замены пропущенных значений с использованием missRanger
+
+# Уменьшение количества категорий в категориальных переменных
+data1_reduced <- data1 %>%
+  mutate(across(where(is.character), ~ fct_lump_n(as.factor(.), n = 50, other_level = "Other")))
+
+# Проверка количества категорий в каждой переменной
+category_counts <- sapply(data1_reduced, function(x) if (is.factor(x)) nlevels(x) else NA)
+print(category_counts)
+
+# Удаление переменных с более чем 53 категориями
+data1_reduced <- data1_reduced %>%
+  select(-one_of(names(data1_reduced)[category_counts > 53]))
+
+# Замена пропущенных значений с использованием missForest
+data1_missForest <- missForest::missForest(as.data.frame(data1_reduced %>% select(-release_date)) %>%
+  mutate_if(is.character, as.factor))$ximp
+data1_missForest$release_date <- data1$release_date
+
+# Сводка данных после замены пропущенных значений с использованием missForest
+summary(data1_missForest)
+
+# Просмотр данных после замены пропущенных значений с использованием missForest
+
+# Создание сравнения методов обработки пропущенных значений
+methods <- c("Removed NA", "Replaced NA with Median", "missRanger", "missForest")
+
+# Создание датафрейма для сравнения
+comparison_data <- bind_rows(
+  data.frame(Method = "Removed NA", vote_average = data1_removed_NAs$vote_average, vote_count = data1_removed_NAs$vote_count, revenue = data1_removed_NAs$revenue, runtime = data1_removed_NAs$runtime, budget = data1_removed_NAs$budget, popularity = data1_removed_NAs$popularity),
+  data.frame(Method = "Replaced NA with Median", vote_average = data1_impute$vote_average, vote_count = data1_impute$vote_count, revenue = data1_impute$revenue, runtime = data1_impute$runtime, budget = data1_impute$budget, popularity = data1_impute$popularity),
+  data.frame(Method = "missRanger", vote_average = data1_missRanger$vote_average, vote_count = data1_missRanger$vote_count, revenue = data1_missRanger$revenue, runtime = data1_missRanger$runtime, budget = data1_missRanger$budget, popularity = data1_missRanger$popularity),
+  data.frame(Method = "missForest", vote_average = data1_missForest$vote_average, vote_count = data1_missForest$vote_count, revenue = data1_missForest$revenue, runtime = data1_missForest$runtime, budget = data1_missForest$budget, popularity = data1_missForest$popularity)
+)
+
+# Преобразование данных для визуализации
+comparison_data_long <- comparison_data %>%
+  pivot_longer(cols = -Method, names_to = "Variable", values_to = "Value")
+
+# Визуализация сравнения с использованием боксплотов
+ggplot(comparison_data_long, aes(x = Method, y = Value, fill = Method)) +
+  geom_boxplot() +
+  facet_wrap(~ Variable, scales = "free") +
+  labs(title = "Comparison of Methods for Handling Missing Values",
+       x = "Method",
+       y = "Value") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+```{r}
+# Загрузка библиотек
+library(visdat)
+library(dplyr)
+library(tidyverse)
+library(missRanger)
+library(missForest)
+library(mice)
+library(Hmisc)
+library(forcats)
+library(ggplot2)
+
+# Функция для вычисления моды
+mode <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
+# Сводка данных
+summary(data1)
+
+# Визуализация пропущенных значений с помощью vis_miss
+vis_miss(data1)
+
+# Визуализация пропущенных значений с помощью mice
+mice::md.pattern(data1)
+
+# Визуализация пропущенных значений с помощью aggr()
+VIM::aggr(x = data1, sortVars = TRUE)
+
+# Удаление всех строк с пропущенными значениями
+data1_removed_NAs <- data1 %>% na.omit()
+
+# Процент удаленных строк
+(1 - nrow(data1_removed_NAs) / nrow(data1)) * 100
+
+# Сводка данных после удаления пропущенных значений
+summary(data1_removed_NAs)
+
+# Замена пропущенных значений медианой
+data1_impute <- data1
+data1_impute$vote_average <- Hmisc::impute(x = data1_impute$vote_average)
+data1_impute$vote_count <- Hmisc::impute(x = data1_impute$vote_count)
+data1_impute$revenue <- Hmisc::impute(x = data1_impute$revenue)
+data1_impute$runtime <- Hmisc::impute(x = data1_impute$runtime)
+data1_impute$budget <- Hmisc::impute(x = data1_impute$budget)
+data1_impute$popularity <- Hmisc::impute(x = data1_impute$popularity)
+
+# Сводка данных после замены пропущенных значений медианой
+summary(data1_impute)
+
+# Замена пропущенных значений с использованием missRanger
+data1_missRanger <- missRanger(data = data1 %>% select(-release_date, -genres))
+
+# Сводка данных после замены пропущенных значений с использованием missRanger
+summary(data1_missRanger)
+
+# Уменьшение количества категорий в категориальных переменных
+data1_reduced <- data1 %>%
+  mutate(across(where(is.character), ~ fct_lump_n(as.factor(.), n = 50, other_level = "Other")))
+
+# Проверка количества категорий в каждой переменной
+category_counts <- sapply(data1_reduced, function(x) if (is.factor(x)) nlevels(x) else NA)
+print(category_counts)
+
+# Удаление переменных с более чем 53 категориями
+data1_reduced <- data1_reduced %>%
+  select(-one_of(names(data1_reduced)[category_counts > 53]))
+
+# Замена пропущенных значений с использованием missForest
+data1_missForest <- missForest::missForest(as.data.frame(data1_reduced %>% select(-release_date, -genres)) %>%
+  mutate_if(is.character, as.factor))$ximp
+data1_missForest$release_date <- data1$release_date
+
+# Сводка данных после замены пропущенных значений с использованием missForest
+summary(data1_missForest)
+
+# Создание сравнения методов обработки пропущенных значений
+methods <- c("Removed NA", "Replaced NA with Median", "missRanger", "missForest")
+
+# Создание датафрейма для сравнения
+comparison_data <- bind_rows(
+  data.frame(Method = "Removed NA", vote_average = data1_removed_NAs$vote_average, vote_count = data1_removed_NAs$vote_count, revenue = data1_removed_NAs$revenue, runtime = data1_removed_NAs$runtime, budget = data1_removed_NAs$budget, popularity = data1_removed_NAs$popularity),
+  data.frame(Method = "Replaced NA with Median", vote_average = data1_impute$vote_average, vote_count = data1_impute$vote_count, revenue = data1_impute$revenue, runtime = data1_impute$runtime, budget = data1_impute$budget, popularity = data1_impute$popularity),
+  data.frame(Method = "missRanger", vote_average = data1_missRanger$vote_average, vote_count = data1_missRanger$vote_count, revenue = data1_missRanger$revenue, runtime = data1_missRanger$runtime, budget = data1_missRanger$budget, popularity = data1_missRanger$popularity),
+  data.frame(Method = "missForest", vote_average = data1_missForest$vote_average, vote_count = data1_missForest$vote_count, revenue = data1_missForest$revenue, runtime = data1_missForest$runtime, budget = data1_missForest$budget, popularity = data1_missForest$popularity)
+)
+
+# Преобразование данных для визуализации
+comparison_data_long <- comparison_data %>%
+  pivot_longer(cols = -Method, names_to = "Variable", values_to = "Value")
+
+# Визуализация сравнения с использованием боксплотов
+ggplot(comparison_data_long, aes(x = Method, y = Value, fill = Method)) +
+  geom_boxplot() +
+  facet_wrap(~ Variable, scales = "free") +
+  labs(title = "Comparison of Methods for Handling Missing Values",
+       x = "Method",
+       y = "Value") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Выбор переменных x и y
+x <- data1$vote_average
+y <- data1$revenue
+
+# Создание полиномиальной модели
+model_poly <- lm(data = data1, formula = revenue ~ vote_average + I(vote_average^2))
+
+# Вывод сводки модели
+summary(model_poly)
+
+# Одномерная линейная регрессия
+model_linear <- lm(data = data1, formula = revenue ~ vote_average)
+
+# Сводка линейной модели
+summary(model_linear)
+
+# Adjusted R-squared для полиномиальной модели
+adj_r2_poly <- summary(model_poly)$adj.r.squared
+
+# Adjusted R-squared для линейной модели
+adj_r2_linear <- summary(model_linear)$adj.r.squared
+
+# Вывод результатов
+cat("Adjusted R-squared for Polynomial Model:", adj_r2_poly, "\n")
+cat("Adjusted R-squared for Linear Model:", adj_r2_linear, "\n")
+
+# Предсказанные значения для полиномиальной модели
+data1$y_pred_poly <- predict(object = model_poly, newdata = data1)
+
+# Предсказанные значения для линейной модели
+data1$y_pred_linear <- predict(object = model_linear, newdata = data1)
+
+# График для полиномиальной модели
+g_poly <- ggplot(data1, aes(vote_average, y_pred_poly)) +
+  geom_point(aes(y = revenue)) +
+  geom_line(col = "green", size = 2) +
+  labs(title = "Polynomial Regression", x = "Vote Average", y = "Revenue") +
+  theme_minimal()
+
+# График для линейной модели
+g_linear <- ggplot(data1, aes(vote_average, y_pred_linear)) +
+  geom_point(aes(y = revenue)) +
+  geom_line(col = "red", size = 2) +
+  labs(title = "Linear Regression", x = "Vote Average", y = "Revenue") +
+  theme_minimal()
+
+# Вывод графиков
+print(g_poly)
+print(g_linear)
+
+# Остатки для полиномиальной модели
+model_residuals_poly <- residuals(model_poly)
+
+# График остатков
+plot(fitted(model_poly), model_residuals_poly,
+     xlab = "Fitted Values", ylab = "Residuals",
+     main = "Residuals vs Fitted Values for Polynomial Model")
+abline(h = 0, col = "red")
+```
+```{r}
+# Загрузка библиотек
+library(visdat)
+library(dplyr)
+library(tidyverse)
+library(missRanger)
+library(missForest)
+library(mice)
+library(Hmisc)
+library(forcats)
+library(ggplot2)
+
+# Функция для вычисления моды
+mode <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
+# Сводка данных
+summary(data1)
+
+# Визуализация пропущенных значений с помощью vis_miss
+vis_miss(data1)
+
+# Визуализация пропущенных значений с помощью mice
+mice::md.pattern(data1)
+
+# Визуализация пропущенных значений с помощью aggr()
+VIM::aggr(x = data1, sortVars = TRUE)
+
+# Удаление всех строк с пропущенными значениями
+data1_removed_NAs <- data1 %>% na.omit()
+
+# Процент удаленных строк
+(1 - nrow(data1_removed_NAs) / nrow(data1)) * 100
+
+# Сводка данных после удаления пропущенных значений
+summary(data1_removed_NAs)
+
+# Замена пропущенных значений медианой
+data1_impute <- data1
+data1_impute$vote_average <- Hmisc::impute(x = data1_impute$vote_average)
+data1_impute$vote_count <- Hmisc::impute(x = data1_impute$vote_count)
+data1_impute$revenue <- Hmisc::impute(x = data1_impute$revenue)
+data1_impute$runtime <- Hmisc::impute(x = data1_impute$runtime)
+data1_impute$budget <- Hmisc::impute(x = data1_impute$budget)
+data1_impute$popularity <- Hmisc::impute(x = data1_impute$popularity)
+
+# Сводка данных после замены пропущенных значений медианой
+summary(data1_impute)
+
+# Замена пропущенных значений с использованием missRanger
+data1_missRanger <- missRanger(data = data1 %>% select(-release_date, -genres))
+
+# Сводка данных после замены пропущенных значений с использованием missRanger
+summary(data1_missRanger)
+
+# Уменьшение количества категорий в категориальных переменных
+data1_reduced <- data1 %>%
+  mutate(across(where(is.character), ~ fct_lump_n(as.factor(.), n = 50, other_level = "Other")))
+
+# Проверка количества категорий в каждой переменной
+category_counts <- sapply(data1_reduced, function(x) if (is.factor(x)) nlevels(x) else NA)
+print(category_counts)
+
+# Удаление переменных с более чем 53 категориями
+data1_reduced <- data1_reduced %>%
+  select(-one_of(names(data1_reduced)[category_counts > 53]))
+
+# Замена пропущенных значений с использованием missForest
+data1_missForest <- missForest::missForest(as.data.frame(data1_reduced %>% select(-release_date, -genres)) %>%
+  mutate_if(is.character, as.factor))$ximp
+data1_missForest$release_date <- data1$release_date
+
+# Сводка данных после замены пропущенных значений с использованием missForest
+summary(data1_missForest)
+
+# Создание сравнения методов обработки пропущенных значений
+methods <- c("Removed NA", "Replaced NA with Median", "missRanger", "missForest")
+
+# Создание датафрейма для сравнения
+comparison_data <- bind_rows(
+  data.frame(Method = "Removed NA", vote_average = data1_removed_NAs$vote_average, vote_count = data1_removed_NAs$vote_count, revenue = data1_removed_NAs$revenue, runtime = data1_removed_NAs$runtime, budget = data1_removed_NAs$budget, popularity = data1_removed_NAs$popularity),
+  data.frame(Method = "Replaced NA with Median", vote_average = data1_impute$vote_average, vote_count = data1_impute$vote_count, revenue = data1_impute$revenue, runtime = data1_impute$runtime, budget = data1_impute$budget, popularity = data1_impute$popularity),
+  data.frame(Method = "missRanger", vote_average = data1_missRanger$vote_average, vote_count = data1_missRanger$vote_count, revenue = data1_missRanger$revenue, runtime = data1_missRanger$runtime, budget = data1_missRanger$budget, popularity = data1_missRanger$popularity),
+  data.frame(Method = "missForest", vote_average = data1_missForest$vote_average, vote_count = data1_missForest$vote_count, revenue = data1_missForest$revenue, runtime = data1_missForest$runtime, budget = data1_missForest$budget, popularity = data1_missForest$popularity)
+)
+
+# Преобразование данных для визуализации
+comparison_data_long <- comparison_data %>%
+  pivot_longer(cols = -Method, names_to = "Variable", values_to = "Value")
+
+# Визуализация сравнения с использованием боксплотов
+ggplot(comparison_data_long, aes(x = Method, y = Value, fill = Method)) +
+  geom_boxplot() +
+  facet_wrap(~ Variable, scales = "free") +
+  labs(title = "Comparison of Methods for Handling Missing Values",
+       x = "Method",
+       y = "Value") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Удаление выбросов в столбце revenue с использованием IQR
+Q1 <- quantile(data1$revenue, 0.25, na.rm = TRUE)
+Q3 <- quantile(data1$revenue, 0.75, na.rm = TRUE)
+IQR <- Q3 - Q1
+lower_bound <- Q1 - 1.5 * IQR
+upper_bound <- Q3 + 1.5 * IQR
+
+data1_no_outliers <- data1 %>%
+  filter(revenue >= lower_bound & revenue <= upper_bound)
+
+# Выбор переменных x и y
+x <- data1_no_outliers$vote_average
+y <- data1_no_outliers$revenue
+
+# Создание полиномиальной модели с использованием poly(x, 25, raw = TRUE)
+model_poly <- lm(data = data1_no_outliers, formula = revenue ~ poly(vote_average, 25, raw = TRUE))
+
+# Вывод сводки модели
+summary(model_poly)
+
+# Одномерная линейная регрессия
+model_linear <- lm(data = data1_no_outliers, formula = revenue ~ vote_average)
+
+# Сводка линейной модели
+summary(model_linear)
+
+# Adjusted R-squared для полиномиальной модели
+adj_r2_poly <- summary(model_poly)$adj.r.squared
+
+# Adjusted R-squared для линейной модели
+adj_r2_linear <- summary(model_linear)$adj.r.squared
+
+# Вывод результатов
+cat("Adjusted R-squared for Polynomial Model:", adj_r2_poly, "\n")
+cat("Adjusted R-squared for Linear Model:", adj_r2_linear, "\n")
+
+# Предсказанные значения для полиномиальной модели
+data1_no_outliers$y_pred_poly <- predict(object = model_poly, newdata = data1_no_outliers)
+
+# Предсказанные значения для линейной модели
+data1_no_outliers$y_pred_linear <- predict(object = model_linear, newdata = data1_no_outliers)
+
+# График для полиномиальной модели
+g_poly <- ggplot(data1_no_outliers, aes(vote_average, y_pred_poly)) +
+  geom_point(aes(y = revenue)) +
+  geom_line(col = "green", size = 2) +
+  labs(title = "Polynomial Regression", x = "Vote Average", y = "Revenue") +
+  theme_minimal()
+
+# График для линейной модели
+g_linear <- ggplot(data1_no_outliers, aes(vote_average, y_pred_linear)) +
+  geom_point(aes(y = revenue)) +
+  geom_line(col = "red", size = 2) +
+  labs(title = "Linear Regression", x = "Vote Average", y = "Revenue") +
+  theme_minimal()
+
+# Вывод графиков
+print(g_poly)
+print(g_linear)
+
+# Остатки для полиномиальной модели
+model_residuals_poly <- residuals(model_poly)
+
+# График остатков
+plot(fitted(model_poly), model_residuals_poly,
+     xlab = "Fitted Values", ylab = "Residuals",
+     main = "Residuals vs Fitted Values for Polynomial Model")
+abline(h = 0, col = "red")
+```
+```{r}
+# Загрузка библиотек
+library(visdat)
+library(dplyr)
+library(tidyverse)
+library(missRanger)
+library(missForest)
+library(mice)
+library(Hmisc)
+library(forcats)
+library(ggplot2)
+
+# Функция для вычисления моды
+mode <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
+# Сводка данных
+summary(data1)
+
+# Визуализация пропущенных значений с помощью vis_miss
+vis_miss(data1)
+
+# Визуализация пропущенных значений с помощью mice
+mice::md.pattern(data1)
+
+# Визуализация пропущенных значений с помощью aggr()
+VIM::aggr(x = data1, sortVars = TRUE)
+
+# Удаление всех строк с пропущенными значениями
+data1_removed_NAs <- data1 %>% na.omit()
+
+# Процент удаленных строк
+(1 - nrow(data1_removed_NAs) / nrow(data1)) * 100
+
+# Сводка данных после удаления пропущенных значений
+summary(data1_removed_NAs)
+
+# Замена пропущенных значений медианой
+data1_impute <- data1
+data1_impute$vote_average <- Hmisc::impute(x = data1_impute$vote_average)
+data1_impute$vote_count <- Hmisc::impute(x = data1_impute$vote_count)
+data1_impute$revenue <- Hmisc::impute(x = data1_impute$revenue)
+data1_impute$runtime <- Hmisc::impute(x = data1_impute$runtime)
+data1_impute$budget <- Hmisc::impute(x = data1_impute$budget)
+data1_impute$popularity <- Hmisc::impute(x = data1_impute$popularity)
+
+# Сводка данных после замены пропущенных значений медианой
+summary(data1_impute)
+
+# Замена пропущенных значений с использованием missRanger
+data1_missRanger <- missRanger(data = data1 %>% select(-release_date, -genres))
+
+# Сводка данных после замены пропущенных значений с использованием missRanger
+summary(data1_missRanger)
+
+# Уменьшение количества категорий в категориальных переменных
+data1_reduced <- data1 %>%
+  mutate(across(where(is.character), ~ fct_lump_n(as.factor(.), n = 50, other_level = "Other")))
+
+# Проверка количества категорий в каждой переменной
+category_counts <- sapply(data1_reduced, function(x) if (is.factor(x)) nlevels(x) else NA)
+print(category_counts)
+
+# Удаление переменных с более чем 53 категориями
+data1_reduced <- data1_reduced %>%
+  select(-one_of(names(data1_reduced)[category_counts > 53]))
+
+# Замена пропущенных значений с использованием missForest
+data1_missForest <- missForest::missForest(as.data.frame(data1_reduced %>% select(-release_date, -genres)) %>%
+  mutate_if(is.character, as.factor))$ximp
+data1_missForest$release_date <- data1$release_date
+
+# Сводка данных после замены пропущенных значений с использованием missForest
+summary(data1_missForest)
+
+# Создание сравнения методов обработки пропущенных значений
+methods <- c("Removed NA", "Replaced NA with Median", "missRanger", "missForest")
+
+# Создание датафрейма для сравнения
+comparison_data <- bind_rows(
+  data.frame(Method = "Removed NA", vote_average = data1_removed_NAs$vote_average, vote_count = data1_removed_NAs$vote_count, revenue = data1_removed_NAs$revenue, runtime = data1_removed_NAs$runtime, budget = data1_removed_NAs$budget, popularity = data1_removed_NAs$popularity),
+  data.frame(Method = "Replaced NA with Median", vote_average = data1_impute$vote_average, vote_count = data1_impute$vote_count, revenue = data1_impute$revenue, runtime = data1_impute$runtime, budget = data1_impute$budget, popularity = data1_impute$popularity),
+  data.frame(Method = "missRanger", vote_average = data1_missRanger$vote_average, vote_count = data1_missRanger$vote_count, revenue = data1_missRanger$revenue, runtime = data1_missRanger$runtime, budget = data1_missRanger$budget, popularity = data1_missRanger$popularity),
+  data.frame(Method = "missForest", vote_average = data1_missForest$vote_average, vote_count = data1_missForest$vote_count, revenue = data1_missForest$revenue, runtime = data1_missForest$runtime, budget = data1_missForest$budget, popularity = data1_missForest$popularity)
+)
+
+# Преобразование данных для визуализации
+comparison_data_long <- comparison_data %>%
+  pivot_longer(cols = -Method, names_to = "Variable", values_to = "Value")
+
+# Визуализация сравнения с использованием боксплотов
+ggplot(comparison_data_long, aes(x = Method, y = Value, fill = Method)) +
+  geom_boxplot() +
+  facet_wrap(~ Variable, scales = "free") +
+  labs(title = "Comparison of Methods for Handling Missing Values",
+       x = "Method",
+       y = "Value") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+```
+
+```{r}
+# Линейная регрессия: revenue на popularity
+model_linear <- lm(data = data1, formula = revenue ~ popularity)
+
+# Сводка линейной модели
+summary(model_linear)
+
+# Полиномиальная регрессия: revenue на popularity и budget
+model_poly <- lm(data = data1, formula = revenue ~ poly(budget, 25, raw = TRUE))
+
+# Вывод сводки модели
+summary(model_poly)
+
+# Adjusted R-squared для полиномиальной модели
+adj_r2_poly <- summary(model_poly)$adj.r.squared
+
+# Adjusted R-squared для линейной модели
+adj_r2_linear <- summary(model_linear)$adj.r.squared
+
+# Вывод результатов
+cat("Adjusted R-squared for Polynomial Model:", adj_r2_poly, "\n")
+cat("Adjusted R-squared for Linear Model:", adj_r2_linear, "\n")
+
+# Предсказанные значения для полиномиальной модели
+data1$y_pred_poly <- predict(object = model_poly, newdata = data1)
+
+# Предсказанные значения для линейной модели
+data1$y_pred_linear <- predict(object = model_linear, newdata = data1)
+
+# График для полиномиальной модели
+g_poly <- ggplot(data1, aes(budget, y_pred_poly)) +
+  geom_point(aes(y = revenue)) +
+  geom_line(col = "green", size = 2) +
+  labs(title = "Polynomial Regression", x = "Popularity", y = "Revenue") +
+  theme_minimal()
+
+# График для линейной модели
+g_linear <- ggplot(data1, aes(popularity, y_pred_linear)) +
+  geom_point(aes(y = revenue)) +
+  geom_line(col = "red", size = 2) +
+  labs(title = "Linear Regression", x = "Popularity", y = "Revenue") +
+  theme_minimal()
+
+# Вывод графиков
+print(g_poly)
+print(g_linear)
+
+# Остатки для полиномиальной модели
+model_residuals_poly <- residuals(model_poly)
+
+# График остатков
+plot(fitted(model_poly), model_residuals_poly,
+     xlab = "Fitted Values", ylab = "Residuals",
+     main = "Residuals vs Fitted Values for Polynomial Model")
+abline(h = 0, col = "red")
+```
+```{r}
+# Линейная регрессия: revenue на popularity
+model_linear <- lm(data = data1, formula = revenue ~ popularity)
+
+# Сводка линейной модели
+summary(model_linear)
+
+# Полиномиальная регрессия: revenue на popularity и budget
+model_poly <- lm(data = data1, formula = revenue ~ poly(budget, 25, raw = TRUE))
+
+# Вывод сводки модели
+summary(model_poly)
+
+# Adjusted R-squared для полиномиальной модели
+adj_r2_poly <- summary(model_poly)$adj.r.squared
+
+# Adjusted R-squared для линейной модели
+adj_r2_linear <- summary(model_linear)$adj.r.squared
+
+# Вывод результатов
+cat("Adjusted R-squared for Polynomial Model:", adj_r2_poly, "\n")
+cat("Adjusted R-squared for Linear Model:", adj_r2_linear, "\n")
+
+# Предсказанные значения для полиномиальной модели
+data1$y_pred_poly <- predict(object = model_poly, newdata = data1)
+
+# Предсказанные значения для линейной модели
+data1$y_pred_linear <- predict(object = model_linear, newdata = data1)
+
+# График для полиномиальной модели
+g_poly <- ggplot(data1, aes(budget, y_pred_poly)) +
+  geom_point(aes(y = revenue)) +
+  geom_line(col = "green", size = 2) +
+  labs(title = "Polynomial Regression", x = "Popularity", y = "Revenue") +
+  theme_minimal()
+
+# График для линейной модели
+g_linear <- ggplot(data1, aes(popularity, y_pred_linear)) +
+  geom_point(aes(y = revenue)) +
+  geom_line(col = "red", size = 2) +
+  labs(title = "Linear Regression", x = "Popularity", y = "Revenue") +
+  theme_minimal()
+
+# Вывод графиков
+print(g_poly)
+print(g_linear)
+
+# Остатки для полиномиальной модели
+model_residuals_poly <- residuals(model_poly)
+
+# График остатков
+plot(fitted(model_poly), model_residuals_poly,
+     xlab = "Fitted Values", ylab = "Residuals",
+     main = "Residuals vs Fitted Values for Polynomial Model")
+abline(h = 0, col = "red")
+```
+
+```{r}
+# Загрузка необходимых библиотек
+library(ggplot2)
+library(robustbase)
+
+# Визуализация выбросов с помощью boxplot
+boxplot(data1$revenue, main = "Boxplot of Revenue", ylab = "Revenue")
+boxplot(data1$popularity, main = "Boxplot of Popularity", ylab = "Popularity")
+boxplot(data1$budget, main = "Boxplot of Budget", ylab = "Budget")
+
+# Функция для удаления выбросов
+remove_outliers <- function(x, na.rm = TRUE, ...) {
+  qnt <- quantile(x, probs = c(0.25, 0.75), na.rm = na.rm, ...)
+  H <- 1.5 * IQR(x, na.rm = na.rm)
+  y <- x
+  y[x < (qnt[1] - H)] <- NA
+  y[x > (qnt[2] + H)] <- NA
+  y
+}
+
+# Применение функции к каждой переменной
+data1$revenue_clean <- remove_outliers(data1$revenue)
+data1$popularity_clean <- remove_outliers(data1$popularity)
+data1$budget_clean <- remove_outliers(data1$budget)
+
+# Удаление строк с NA (выбросами)
+data1_clean <- na.omit(data1)
+
+# Логарифмическая трансформация с добавлением небольшой константы
+epsilon <- 1e-10  # Небольшая константа для добавления к нулевым и отрицательным значениям
+data1_clean$log_revenue <- log(data1_clean$revenue + epsilon)
+data1_clean$log_popularity <- log(data1_clean$popularity + epsilon)
+data1_clean$log_budget <- log(data1_clean$budget + epsilon)
+
+# Построение моделей на трансформированных данных
+model_linear_log <- lm(data = data1_clean, formula = log_revenue ~ log_popularity)
+model_poly_log <- lm(data = data1_clean, formula = log_revenue ~ poly(log_budget, 25, raw = TRUE))
+
+# Робастная линейная регрессия
+model_robust <- lmrob(revenue ~ popularity, data = data1_clean)
+summary(model_robust)
+
+# Расстояние Кука
+cooksd <- cooks.distance(model_poly_log)
+plot(cooksd, pch = "*", cex = 2, main = "Influential Obs by Cooks distance")
+abline(h = 4*mean(cooksd, na.rm = TRUE), col = "red")
+
+# Замена выбросов на медиану
+data1_clean$revenue_clean <- ifelse(data1_clean$revenue %in% boxplot.stats(data1_clean$revenue)$out, median(data1_clean$revenue), data1_clean$revenue)
+data1_clean$popularity_clean <- ifelse(data1_clean$popularity %in% boxplot.stats(data1_clean$popularity)$out, median(data1_clean$popularity), data1_clean$popularity)
+data1_clean$budget_clean <- ifelse(data1_clean$budget %in% boxplot.stats(data1_clean$budget)$out, median(data1_clean$budget), data1_clean$budget)
+
+# Построение моделей на очищенных данных
+model_linear_clean <- lm(data = data1_clean, formula = revenue_clean ~ popularity_clean)
+model_poly_clean <- lm(data = data1_clean, formula = revenue_clean ~ poly(budget_clean, 25, raw = TRUE))
+
+# Сводка моделей
+summary(model_linear_clean)
+summary(model_poly_clean)
+
+# Предсказанные значения для полиномиальной модели на очищенных данных
+data1_clean$y_pred_poly_clean <- predict(object = model_poly_clean, newdata = data1_clean)
+
+# Предсказанные значения для линейной модели на очищенных данных
+data1_clean$y_pred_linear_clean <- predict(object = model_linear_clean, newdata = data1_clean)
+
+# Графики для моделей на очищенных данных
+g_poly_clean <- ggplot(data1_clean, aes(budget_clean, y_pred_poly_clean)) +
+  geom_point(aes(y = revenue_clean)) +
+  geom_line(col = "green", size = 2) +
+  labs(title = "Polynomial Regression (Cleaned Data)", x = "Budget", y = "Revenue") +
+  theme_minimal()
+
+g_linear_clean <- ggplot(data1_clean, aes(popularity_clean, y_pred_linear_clean)) +
+  geom_point(aes(y = revenue_clean)) +
+  geom_line(col = "red", size = 2) +
+  labs(title = "Linear Regression (Cleaned Data)", x = "Popularity", y = "Revenue") +
+  theme_minimal()
+
+# Вывод графиков
+print(g_poly_clean)
+print(g_linear_clean)
+
+# Остатки для полиномиальной модели на очищенных данных
+model_residuals_poly_clean <- residuals(model_poly_clean)
+
+# График остатков
+plot(fitted(model_poly_clean), model_residuals_poly_clean,
+     xlab = "Fitted Values", ylab = "Residuals",
+     main = "Residuals vs Fitted Values for Polynomial Model (Cleaned Data)")
+abline(h = 0, col = "red")
+```
+
+
+

@@ -1,0 +1,75 @@
+```{r}
+
+```
+```{r}
+data <- read.csv(file.choose())
+```
+```{r}
+# Sample 10% of the rows from the data frame
+df <- data[sample(nrow(data), 0.01 * nrow(data)), ]
+
+```
+
+```{r}
+View(df)
+```
+```{r}
+summary(df)
+```
+```{r}
+head(df)
+```
+```{r}
+sum(is.na(df))
+```
+```{r}
+df_shuffled = df[sample(nrow(df)),]
+```
+```{r}
+dim(df_shuffled)
+```
+```{r}
+# Shuffle the dataset
+set.seed(123)  # Setting seed for reproducibility
+dt <- sample(nrow(df_shuffled), nrow(df_shuffled)*0.7)
+
+# Create training and test sets
+train <- df_shuffled[dt, ]
+test <- df_shuffled[-dt, ]
+```
+```{r}
+print(dim(test))
+print(dim(train))
+```
+```{r}
+train$status <- factor(train$status)
+```
+```{r}
+test$status <- factor(test$status, levels = levels(train$status))
+```
+```{r}
+train$status <- as.integer(train$status)
+test$status <- as.integer(test$status)
+```
+```{r}
+library(caret)
+```
+```{r}
+# Create dummy variables (one-hot encoding) from the training data
+dummies_train <- dummyVars(~ ., data = train)
+train_encoded <- predict(dummies_train, newdata = train)
+train_encoded <- data.frame(train_encoded)
+```
+```{r}
+# Apply the same encoding to the test data
+test_encoded <- predict(dummies_train, newdata = test)
+test_encoded <- data.frame(test_encoded)
+```
+```{r}
+print(test_encoded)
+print(train_encoded)
+```
+
+
+
+

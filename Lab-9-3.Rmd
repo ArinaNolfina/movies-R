@@ -1,0 +1,149 @@
+```{r}
+install.packages('corrplot')
+```
+
+
+```{r}
+# Loading necessary libraries
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(corrplot)
+```
+
+
+```{r}
+# Loading data
+df <- read.csv(file.choose())
+```
+
+
+```{r}
+df <- df[sample(nrow(df), 0.01 * nrow(df)), ]
+```
+
+
+```{r}
+df <- sample(df)
+```
+
+
+```{r}
+# Viewing data summary
+summary(df)
+```
+
+
+```{r}
+# Pair plots for numerical columns
+pairs(df[, c("vote_average", "vote_count", "revenue", "runtime", "budget", "popularity")])
+```
+
+
+```{r}
+# Scaling data
+df_scaled <- df %>% 
+  select(vote_average, vote_count, revenue, runtime, budget, popularity) %>% 
+  scale() %>% 
+  as_tibble()
+```
+
+
+```{r}
+# Transforming to long format
+df_gather <- df_scaled %>% 
+  gather(key = "variable", value = "value", 1:6) %>% 
+  mutate(variable = as.factor(variable))
+# Creating plot with facet_wrap
+g <- ggplot(df_gather, aes(x = variable, y = value))
+g <- g + facet_wrap( ~ variable, scales = "free")
+g <- g + geom_point()
+g <- g + geom_smooth(se = FALSE, method = "lm")
+print(g)
+```
+
+
+```{r}
+# Calculating correlation matrix
+cor_vals <- cor(df %>% select(vote_average, vote_count, revenue, runtime, budget, popularity)) %>% 
+  as.data.frame() %>% 
+  mutate(Var1 = rownames(.)) %>% 
+  gather(key = "Var2", value = "Corr", 1:6)
+```
+
+
+```{r}
+# Creating heatmap
+g <- ggplot(cor_vals, aes(x = Var1, y = Var2, fill = Corr))
+g <- g + geom_tile()
+g <- g + scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                             midpoint = 0, limit = c(-1,1), space = "Lab", 
+                             name="Pearson\nCorrelation")
+g <- g + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+print(g)
+```
+
+
+```{r}
+# Calculating correlation matrix
+cor_df <- cor(df %>% select(vote_average, vote_count, revenue, runtime, budget, popularity))
+```
+
+
+```{r}
+# Visualizing correlation matrix with corrplot
+corrplot.mixed(cor_df)
+```
+
+
+```{r}
+# First model: regression using all numerical variables
+model <- lm(formula = vote_average ~ vote_count + revenue + runtime + budget + popularity, data = df)
+summary(model)
+```
+
+
+```{r}
+# Second model: regression with selected variables
+model2 <- lm(formula = vote_average ~ vote_count + revenue + runtime + budget, data = df)
+summary(model2)
+```
+
+
+```{r}
+# Comparing models using ANOVA
+anova(model, model2)
+```
+
+
+```{r}
+# Predicting values for the second model
+df$vote_average_pred <- predict(object = model2, newdata = df)
+```
+
+
+```{r}
+# Plot of predicted vs. actual values
+g <- ggplot(df, aes(y = vote_average, x = vote_average_pred))
+g <- g + geom_point(alpha = 0.1)
+g <- g + geom_smooth(method = "lm", se = FALSE)
+g <- g + geom_abline(slope = 1, intercept = 0)
+g <- g + ylab("Actual")
+g <- g + xlab("Prediction")
+g <- g + ggtitle("Prediction vs. Actual")
+print(g)
+```
+
+
+```{r}
+# Model summary
+model_summary <- summary(model2)
+model_summary$adj.r.squared
+```
+
+
+```{r}
+# Q-Q plot for residuals
+qqnorm(model2$residuals)
+qqline(model2$residuals)
+```
