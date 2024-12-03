@@ -1,0 +1,194 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+install.packages('nortest')
+install.packages('moments')
+```
+
+```{r}
+# Загрузка необходимых библиотек
+library(readxl)
+library(ggplot2)
+library(reshape2)
+library(moments)
+library(nortest)
+library(dplyr)
+```
+```{r}
+data <- read.csv(file.choose())
+numeric_cols <- sapply(data, is.numeric)
+numeric_data <- data[, numeric_cols]
+numeric_data <- numeric_data %>% select(-runtime, -popularity, -revenue_out, - revenue)
+numeric_data <- numeric_data %>% sample_n(size = 4999)
+```
+```{r}
+num_cols <- length(numeric_data)
+# Adjust the number of rows for the plots to fit better
+par(mfrow = c(ceiling(num_cols/3), 3)) # Adjust columns to a reasonable number (e.g., 3)
+for (col in names(numeric_data)) {
+  qqnorm(numeric_data[[col]], main=paste("Q-Q Plot of", col))
+  qqline(numeric_data[[col]], col="red")
+}
+
+```
+
+
+
+```{r}
+# Оверлей графиков плотности для каждого числового столбца
+ggplot(numeric_data_melted, aes(x=value, color=variable)) +
+  geom_density() +
+  labs(title="Overlay Density Plots for Numeric Columns", x="Value", y="Density") +
+  theme_minimal()
+```
+
+
+```{r}
+# Комбинированные гистограммы с наложением нормального распределения для каждого числового столбца
+par(mfrow = c(1, length(numeric_data)))  # Расположение графиков в одну строку
+for (col in names(numeric_data)) {
+  hist(numeric_data[[col]], probability=TRUE, main=paste("Histogram of", col), 
+       xlab=col, col="lightblue", border="black")
+  curve(dnorm(x, mean=mean(numeric_data[[col]]), sd=sd(numeric_data[[col]])), 
+        col="red", add=TRUE)
+}
+```
+
+
+```{r}
+# Создание списка объектов ggplot для гистограмм и Q-Q графиков
+plots <- lapply(names(numeric_data), function(col) {
+  p1 <- ggplot(numeric_data, aes(x = .data[[col]])) + 
+        geom_histogram(aes(y = ..density..), fill="lightblue", color="black") +
+        geom_density(color="red") + 
+        labs(title = paste("Histogram & Density of", col))
+  p2 <- ggplot(numeric_data, aes(sample = .data[[col]])) + 
+        stat_qq() + 
+        stat_qq_line() +
+        labs(title = paste("Q-Q Plot of", col))
+  
+  list(p1, p2)
+})
+```
+
+
+```{r}
+# Boxplot для каждого числового столбца
+boxplot(numeric_data, col = c("red", "blue", "green"), 
+        main = "Boxplot of Numeric Columns")
+```
+
+
+```{r}
+# Тест Шапиро-Уилка для каждого числового столбца
+for(i in 1:ncol(numeric_data)){
+  print(colnames(numeric_data)[i])
+  print(shapiro.test(numeric_data[, i]))
+}
+
+# Тест Андерсона-Дарлинга для каждого числового столбца
+for(i in 1:ncol(numeric_data)){
+  print(colnames(numeric_data)[i])
+  print(ad.test(numeric_data[, i]))
+}
+
+# Тест Колмогорова-Смирнова для каждого числового столбца
+for(i in 1:ncol(numeric_data)){
+  print(colnames(numeric_data)[i])
+  print(lillie.test(numeric_data[, i]))
+}
+```
+
+
+```{r}
+# Расчет асимметрии и эксцесса для каждого числового столбца
+skewness_values <- apply(numeric_data, 2, skewness)
+kurtosis_values <- apply(numeric_data, 2, kurtosis)
+
+# Создание датафрейма для хранения этих значений
+skew_kurt_df <- data.frame(
+  variable = names(numeric_data),
+  skewness = skewness_values,
+  kurtosis = kurtosis_values
+)
+
+# Вывод результатов
+print(skew_kurt_df)
+```
+
+
+```{r}
+# Стандартизация признаков (исключая столбец "title")
+scaled_data <- scale(numeric_data)
+
+# Переформатирование данных для ggplot
+numeric_data_melted <- melt(as.data.frame(scaled_data))
+```
+
+
+```{r}
+# Оверлей графиков плотности после стандартизации
+ggplot(numeric_data_melted, aes(x=value, color=variable)) +
+  geom_density() +
+  labs(title="Overlay Density Plots after Standardization", x="Value", y="Density") +
+  theme_minimal()
+```
+
+
+```{r}
+# Min-Max масштабирование
+min_max_scale <- function(x) {
+  (x - min(x)) / (max(x) - min(x))
+}
+
+# Применение Min-Max масштабирования к каждому признаку
+scaled_data_mm <- as.data.frame(lapply(numeric_data, min_max_scale))
+
+# Переформатирование данных для ggplot
+numeric_data_melted <- melt(as.data.frame(scaled_data_mm))
+
+# Оверлей графиков плотности после Min-Max масштабирования
+ggplot(numeric_data_melted, aes(x=value, color=variable)) +
+  geom_density() +
+  labs(title="Overlay Density Plots after Min-Max scaling", x="Value", y="Density") +
+  theme_minimal()
+```
+
+
+```{r}
+# Robust масштабирование
+robust_scale <- function(x) {
+  (x - median(x)) / IQR(x)
+}
+```
+
+
+```{r}
+# Применение robust масштабирования к каждому признаку
+scaled_data_robust <- as.data.frame(lapply(numeric_data, robust_scale))
+
+# Переформатирование данных для ggplot
+numeric_data_melted <- melt(as.data.frame(scaled_data_robust))
+```
+
+
+```{r}
+# Оверлей графиков плотности после robust масштабирования
+ggplot(numeric_data_melted, aes(x=value, color=variable)) +
+  geom_density() +
+  labs(title="Overlay Density Plots after Robust scaling", x="Value", y="Density") +
+  theme_minimal()
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.

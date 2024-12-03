@@ -1,0 +1,52 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+```{r}
+install.packages('rpart.plot')
+```
+
+```{r}
+#regression
+library(rpart)
+library(rpart.plot)
+data(iris)
+```
+
+
+```{r}
+# Build the regression tree
+tree_model_regression <- rpart(Sepal.Length ~ Sepal.Width + Petal.Length + Petal.Width, 
+                               data = iris, method = "anova")
+```
+
+
+```{r}
+# View the summary of the tree model
+summary(tree_model_regression)
+# Plot the regression tree
+rpart.plot(tree_model_regression)
+# Make predictions using the regression model
+predictions <- predict(tree_model_regression, iris)
+```
+
+
+```{r}
+# View the first few predictions
+head(predictions)
+# Calculate residuals
+residuals <- iris$Sepal.Length - predictions
+```
+
+
+```{r}
+# Calculate Mean Squared Error (MSE)
+mse <- mean(residuals^2)
+cat("Mean Squared Error (MSE):", mse, "\n")
+# Calculate R-squared
+sst <- sum((iris$Sepal.Length - mean(iris$Sepal.Length))^2)
+sse <- sum(residuals^2)
+r_squared <- 1 - sse / sst
+cat("R-squared:", r_squared, "\n")
+```
+
